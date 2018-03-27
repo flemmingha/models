@@ -47,26 +47,3 @@ def build_tensor_serving_input_receiver_fn(shape, dtype=tf.float32,
         features=features, receiver_tensors=features)
 
   return serving_input_receiver_fn
-
-
-def convert_savedmodel_to_frozen_graph(savedmodel_dir, output_path):
-  """Convert a SavedModel to a Frozen Graph.
-
-  A SavedModel includes a `variables` directory with variable values,
-  and a specification of the graph in a ProtoBuffer file. A Frozen Graph takes
-  the variable values and inserts them into the graph, such that the
-  SavedModel is all bundled into a single file. TensorRT and TFLite both
-  leverage Frozen Graphs. Here, we provide a simple utility for converting
-  a SavedModel into a frozen graph for use with these other tools.
-
-  Args:
-    savedmodel_dir: the string path to the directory containing the .pb
-      and variables for a SavedModel. This is equivalent to the subdirectory
-      that is created under the directory specified by --export_dir when
-      running an Official Model.
-    output_path: string representing the full path to the saved frozen graph.
-      For example, `'my/path/frozen_graph.pb'`
-
-  """
-
-
