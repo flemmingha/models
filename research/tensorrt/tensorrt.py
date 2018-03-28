@@ -243,24 +243,8 @@ def get_gpu_config():
 
 def get_iterator(data):
   """Wrap numpy data in a dataset."""
-  dataset = tf.data.Dataset.from_tensor_slices(data).repeat()
+  dataset = tf.data.Dataset.from_tensors(data).repeat()
   return dataset.make_one_shot_iterator()
-
-
-# TODO(karmel): add or remove timeline functionality
-def make_timeline(stats):
-  tl = timeline.Timeline(stats[0][0].step_stats)
-  chrome_trace = tl.generate_chrome_trace_format()
-
-  trace = json.loads(chrome_trace)
-
-  for step in stats[1:]:
-    tl = timeline.Timeline(step[0].step_stats)
-    chrome_trace = tl.generate_chrome_trace_format()
-    tmp = json.loads(chrome_trace)
-    trace["traceEvents"].extend(tmp["traceEvents"])
-
-  return json.dumps(trace, indent=2)
 
 
 def time_graph(graph_def, data, input_node, output_nodes, num_loops=100):
@@ -350,12 +334,16 @@ def get_labels():
 
 
 def top_predictions(result, n):
-  # TODO(karmel): clean this up.
-  ids = np.argsort(result)[:, -n:][:, ::-1]
-  return result[np.arange(np.shape(result)[0])[:, np.newaxis], ids][0]
+  """Get the top n predictions given the array of softmax results."""
+  # We only care about the first example.
+  probabilities = result[0]
+  # Get the ids of most probable labels. Reverse order to get greatest first.
+  ids = np.argsort(probabilities)[::-1]
+  return ids[:n]
 
 
 def get_labels_for_ids(labels, ids):
+  """Get the human-readable labels for given ids."""
   return [labels[str(x + 1)] for x in ids]
 
 
@@ -366,9 +354,9 @@ def print_predictions(results, preds_to_print=5):
   print("Predictions:")
 
   for mode, result in results:
-    pred_ids = top_predictions(result, [preds_to_print])
+    pred_ids = top_predictions(result, preds_to_print)
     pred_labels = get_labels_for_ids(labels, pred_ids)
-    print(mode, pred_labels)
+    print("Precision: ", mode, pred_labels)
 
 
 ################################################################################
@@ -404,6 +392,7 @@ def main(argv):
   results = []
   if flags.native:
     mode = "native"
+    print("Running {} graph".format(mode))
     g_name = "{}_{}".format(mode, graph_name)
     result = time_and_log_graph(
         g_name, frozen_graph_def, data, log_buffer, flags)
@@ -411,18 +400,21 @@ def main(argv):
 
   if flags.fp32:
     mode = "FP32"
+    print("Running {} graph".format(mode))
     _, result = run_trt_graph_for_mode(
         graph_name, frozen_graph_def, mode, data, log_buffer, flags)
     results.append((mode, result))
 
   if flags.fp16:
     mode = "FP16"
+    print("Running {} graph".format(mode))
     _, result = run_trt_graph_for_mode(
         graph_name, frozen_graph_def, mode, data, log_buffer, flags)
     results.append((mode, result))
 
   if flags.int8:
     mode = "INT8"
+    print("Running {} graph".format(mode))
     calib_mode = "INT8_calib"
     save_name = get_tftrt_name(graph_name, calib_mode)
     graph, result = run_trt_graph_for_mode(
@@ -495,10 +487,10 @@ class TensorRTParser(argparse.ArgumentParser):
     )
 
     self.add_argument(
-        "--image_file", "-if", default="/tmp/image.jpg",
+        "--image_file", "-if", default=None,
         help="[default: %(default)s] The location of a JPEG image that will "
         "be passed in for inference. This will be copied batch_size times to "
-        "imitate a batch.",
+        "imitate a batch. If not passed, random data will be used.",
         metavar="<IF>",
     )
 
