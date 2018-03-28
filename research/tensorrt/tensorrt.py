@@ -38,7 +38,7 @@ from official.resnet import imagenet_preprocessing
 
 _GPU_MEM_FRACTION = 0.50
 _LOG_FILE = "log.txt"
-_LABELS_FILE = "labels.json"
+_LABELS_FILE = "labellist.json"
 _GRAPH_FILE = "frozen_graph.pb"
 
 
